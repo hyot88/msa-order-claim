@@ -1,0 +1,54 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' apply false
+    id 'io.spring.dependency-management' apply false
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+ext {
+    set('springBootVersion', '3.3.3')
+    set('springCloudVersion', '2023.0.3')
+    set('javaVersion', 21)
+}
+
+allprojects {
+    // 공통 저장소는 settings의 dependencyResolutionManagement에 이미 선언
+}
+
+subprojects {
+    apply plugin: 'java'
+    // dependencyManagement DSL을 쓰려면 이 플러그인이 반드시 필요
+    apply plugin: 'io.spring.dependency-management'
+
+    java {
+        toolchain { languageVersion = JavaLanguageVersion.of(javaVersion as int) }
+    }
+
+    configurations {
+        compileOnly { extendsFrom annotationProcessor }
+    }
+
+    tasks.withType(Test).configureEach { useJUnitPlatform() }
+
+    // 전 모듈 공통 라이브러리(Jackson 등) 버전을 통합관리
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+        }
+    }
+
+    // 부트 플러그인이 선언된 모듈에서만 Cloud BOM import + 테스트 의존 추가
+    plugins.withId('org.springframework.boot') {
+        dependencyManagement {
+            imports {
+                mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+            }
+        }
+
+        dependencies {
+            testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        }
+    }
+}

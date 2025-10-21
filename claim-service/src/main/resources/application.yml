@@ -1,0 +1,41 @@
+server:
+  port: 8080 #?
+
+spring:
+  application:
+    name: claim-service
+    main:
+      web-application-type: servlet
+    kafka:
+      bootstrap-servers: kafka:9092
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true  # eureka 서비스명으로 라우팅
+      routes:
+        - id: order
+          uri: lb://order-service
+          predicates:
+            - Path=/orders/**
+
+        - id: claim
+          uri: lb://claim-service
+          predicates:
+            - Path=/claims/**
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka  # 도커 네트워크 안 붙일거면 localhost
+    fetchRegistry: true
+    registerWithEureka: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  tracing:
+    sampling:
+      probability: 1.0  # Zipkin 확인용
