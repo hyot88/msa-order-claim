@@ -1,26 +1,30 @@
 server:
-  port: 8080 #?
+  port: 9002
 
 spring:
   application:
     name: inventory-service
-    main:
-      web-application-type: servlet
-    kafka:
-      bootstrap-servers: kafka:9092
+  kafka:
+    bootstrap-servers: localhost:29092
+    consumer:
+      group-id: inventory
+      auto-offset-reset: earliest
+      # 오토컨피그가 아래 직렬화 기본값을 넣지만, 명시해두면 확실함
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://localhost:8761/eureka  # 도커 네트워크 안 붙일거면 localhost
-    fetchRegistry: true
-    registerWithEureka: true
+      defaultZone: http://localhost:8761/eureka
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
-  tracing:
-    sampling:
-      probability: 1.0  # Zipkin 확인용
+inventory:
+  failRate: 0.0
+
+logging:
+  level:
+    org.springframework.kafka: INFO
+    org.apache.kafka.clients.consumer: INFO
