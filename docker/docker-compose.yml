@@ -10,17 +10,21 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
-    depends_on: [zookeeper]
-    ports: ["9092:9092"]
+    container_name: kafka
+    hostname: kafka              # ★ 내부에서 'kafka'가 자기 자신으로 확실히 해석되게
+    depends_on: [ zookeeper ]
+    ports:
+      - "29092:29092"            # 호스트용
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      # 두 리스너, 포트 분리
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
-      # 내부 컨테이너 → kafka:9092, 호스트 → localhost:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+
+      # 리스너 두 개: 내부(도커 네트워크)/외부(호스트)
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OPTS: "-Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true"
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
