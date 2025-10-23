@@ -1,26 +1,24 @@
 server:
-  port: 8080 #?
+  port: 9001
 
 spring:
   application:
     name: order-service
-    main:
-      web-application-type: servlet
-    kafka:
-      bootstrap-servers: kafka:9092
+  datasource:
+    url: jdbc:postgresql://localhost:5433/orderdb
+    username: order
+    password: order
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  kafka:
+    bootstrap-servers: localhost:9092
 
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://localhost:8761/eureka  # 도커 네트워크 안 붙일거면 localhost
-    fetchRegistry: true
-    registerWithEureka: true
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
-  tracing:
-    sampling:
-      probability: 1.0  # Zipkin 확인용
+      defaultZone: http://localhost:8761/eureka
