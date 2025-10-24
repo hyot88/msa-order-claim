@@ -28,3 +28,10 @@ logging:
   level:
     org.springframework.kafka: INFO
     org.apache.kafka.clients.consumer: INFO
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+    propagation:
+      type: B3,W3C

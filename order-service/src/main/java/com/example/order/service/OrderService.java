@@ -9,11 +9,13 @@ import com.example.order.repo.OrderRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.micrometer.tracing.Tracer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -22,6 +24,7 @@ public class OrderService {
     private final OrderRepository orderRepo;
     private final OutboxRepository outboxRepo;
     private final ObjectMapper om;
+    private final Tracer tracer;
 
     @Transactional
     public UUID create(String userId, int totalAmount) {
@@ -44,8 +47,13 @@ public class OrderService {
 
         // payload/headers를 JSON 문자열로 저장
         try {
+            String traceId = Optional.ofNullable(tracer.currentSpan())
+                    .map(span -> span.context().traceId())
+                    .orElse(null);
+
             JsonNode payload = om.valueToTree(evt); // evt -> JsonNode
             ObjectNode headers = om.createObjectNode()
+                    .put("traceId", traceId)
                     .put("eventSource", "order-service");
             outboxRepo.save(OutboxEvent.builder()
                     .aggregateType("ORDER")

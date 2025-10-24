@@ -39,3 +39,5 @@ management:
   tracing:
     sampling:
       probability: 1.0  # Zipkin 확인용
+    propagation:
+      type: B3,W3C

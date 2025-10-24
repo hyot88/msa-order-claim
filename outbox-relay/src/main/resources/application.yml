@@ -18,3 +18,10 @@ spring:
 relay:
   batchSize: 50
   pollMs: 500
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+    propagation:
+      type: B3,W3C

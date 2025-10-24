@@ -9,6 +9,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-json'   // ObjectMapper
     implementation 'org.springframework.kafka:spring-kafka'              // Kafka
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+    implementation 'io.zipkin.reporter2:zipkin-reporter-brave'
     implementation project(':common-lib')
 
     compileOnly 'org.projectlombok:lombok'
