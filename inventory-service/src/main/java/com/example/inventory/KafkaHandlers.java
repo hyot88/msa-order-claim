@@ -38,6 +38,7 @@ public class KafkaHandlers {
         }
 
         UUID orderId = UUID.fromString(node.get("orderId").asText());
+        // 재고 관리 시스템에서 재고 부족 상황을 인위적으로 시뮬레이션하기 위해 사용
         boolean fail = ThreadLocalRandom.current().nextDouble() < failRate;
 
         Map<String, Object> evt = fail

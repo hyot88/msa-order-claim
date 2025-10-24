@@ -38,6 +38,7 @@ public class KafkaHandlers {
             return;
         }
 
+        // 결제 관리 시스템에서 결제 실패 상황을 인위적으로 시뮬레이션하기 위해 사용
         boolean fail = ThreadLocalRandom.current().nextDouble() < failRate;
         if (!fail) {
             var evt = Map.of("orderId", orderId.toString(), "authorizedAt", Instant.now().toString());
