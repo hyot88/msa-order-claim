@@ -20,7 +20,13 @@ public class KafkaConfig {
                 Map.of(
                         ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
                         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class
+                        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                        // 멱등성/안정성
+                        ProducerConfig.ACKS_CONFIG, "all",
+                        ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true,
+                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120_000,
+                        ProducerConfig.RETRIES_CONFIG, 10,
+                        ProducerConfig.LINGER_MS_CONFIG, 10
                 )
         );
     }
