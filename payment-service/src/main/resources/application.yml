@@ -22,11 +22,15 @@ eureka:
       defaultZone: http://localhost:8761/eureka
 
 payment:
-  failRate: 0.5
+  failRate: 0.0
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
   tracing:
     sampling:
-      probability: 1.0
+      probability: 1.0  # Zipkin 확인용
     propagation:
       type: B3,W3C

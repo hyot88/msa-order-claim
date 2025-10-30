@@ -81,7 +81,13 @@ public class OrderService {
             var evt = OrderEvents.OrderApproved.builder()
                     .orderId(orderId).approvedAt(Instant.now()).build();
             JsonNode payload = om.valueToTree(evt); // evt -> JsonNode
+
+            String traceId = Optional.ofNullable(tracer.currentSpan())
+                    .map(span -> span.context().traceId())
+                    .orElse(null);
+
             ObjectNode headers = om.createObjectNode()
+                    .put("traceId", traceId)
                     .put("eventSource", "order-service");
 
             outboxRepo.save(OutboxEvent.builder()

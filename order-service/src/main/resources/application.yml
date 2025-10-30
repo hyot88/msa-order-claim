@@ -24,8 +24,12 @@ eureka:
       defaultZone: http://localhost:8761/eureka
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
   tracing:
     sampling:
-      probability: 1.0
+      probability: 1.0  # Zipkin 확인용
     propagation:
       type: B3,W3C

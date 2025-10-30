@@ -2,6 +2,8 @@ package com.example.outbox;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.propagation.Propagator;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @EnableScheduling
@@ -23,6 +26,9 @@ public class OutboxRelay {
     private final OutboxEventRepository repo;
     private final KafkaTemplate<String, String> kafka;
     private final ObjectMapper om;
+
+    private final Tracer tracer;
+    private final Propagator propagator;
 
     @Value("${relay.batchSize:50}") int batchSize;
 
