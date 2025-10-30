@@ -6,16 +6,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.*;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
 
 @Configuration
+@Slf4j
 public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
     @Bean
     public ProducerFactory<String, String> producerFactory() {
+        log.info("Creating Kafka producer factory with bootstrap servers: {}", bootstrapServers);
         return new DefaultKafkaProducerFactory<>(
                 Map.of(
                         ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
@@ -33,6 +36,9 @@ public class KafkaConfig {
 
     @Bean
     public KafkaTemplate<String, String> kafkaTemplate() {
-        return new KafkaTemplate<>(producerFactory());
+        log.info("Creating KafkaTemplate bean");
+        KafkaTemplate<String, String> template = new KafkaTemplate<>(producerFactory());
+        log.info("KafkaTemplate bean created successfully");
+        return template;
     }
 }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +23,7 @@ import java.util.Map;
 @Component
 @EnableScheduling
 @RequiredArgsConstructor
+@Slf4j
 public class OutboxRelay {
 
     private final OutboxEventRepository repo;
@@ -40,18 +42,33 @@ public class OutboxRelay {
         List<OutboxEvent> events = repo.lockAndFetchRaw(batchSize);
         if (events.isEmpty()) return;
 
+        log.info("Found {} unpublished events to process", events.size());
+
         // 3) Kafka 전송 & published=true
         for (OutboxEvent e : events) {
             // 부모 컨텍스트 추출 및 자식 스팬 시작
             io.micrometer.tracing.Span span = null;
             try {
-                // 헤더에서 traceId 추출
+                // 헤더에서 traceId 추출 (이전 방식과의 호환성 유지)
                 String traceId = getText(e.getHeaders(), "traceId");
+                log.debug("Event type: {}, aggregateId: {}, traceId: {}", e.getType(), e.getAggregateId(), traceId);
 
                 if (traceId != null) {
                     // 헤더에서 부모 컨텍스트 추출을 위한 캐리어 생성
                     Map<String, String> carrier = new HashMap<>();
-                    // B3 형식으로 traceId 설정 (전체 컨텍스트는 아니지만 최소한 traceId는 연결)
+
+                    // 헤더의 모든 필드를 캐리어에 복사
+                    if (e.getHeaders() != null) {
+                        e.getHeaders().fieldNames().forEachRemaining(fieldName -> {
+                            String value = getText(e.getHeaders(), fieldName);
+                            if (value != null) {
+                                carrier.put(fieldName, value);
+                                log.debug("Added header to carrier: {}={}", fieldName, value);
+                            }
+                        });
+                    }
+
+                    // 이전 방식과의 호환성을 위해 b3 헤더에도 추가
                     carrier.put("b3", traceId);
 
                     // propagator를 사용하여 부모 컨텍스트 추출
@@ -88,9 +105,11 @@ public class OutboxRelay {
                         case "OrderCreated", "OrderApproved", "OrderCancelled" -> "order.events";
                         default -> "order.events";
                     };
+                    log.info("Determined topic for event type {}: {}", e.getType(), topic);
 
                     // JsonNode -> String
                     String value = toJson(e.getPayload());
+                    log.debug("Message payload: {}", value);
 
                     ProducerRecord<String, String> record = new ProducerRecord<>(topic, e.getAggregateId(), value);
                     record.headers()
@@ -106,8 +125,16 @@ public class OutboxRelay {
                         record.headers().add(new RecordHeader(entry.getKey(), bytes(entry.getValue())));
                     }
 
-                    kafka.send(record).join();
-                    e.setPublished(true); // dirty checking으로 UPDATE
+                    try {
+                        log.info("Sending message to topic: {}, key: {}, type: {}", topic, e.getAggregateId(), e.getType());
+                        kafka.send(record).join(); // Wait for completion
+                        log.info("Successfully sent message to topic: {}, key: {}", topic, e.getAggregateId());
+                        e.setPublished(true); // dirty checking으로 UPDATE
+                    } catch (Exception ex) {
+                        log.error("Exception during Kafka send operation. Topic: {}, Key: {}, Type: {}", 
+                                topic, e.getAggregateId(), e.getType(), ex);
+                        // Don't rethrow to avoid transaction rollback
+                    }
                 }
             } finally {
                 // 스팬 종료
@@ -132,4 +159,3 @@ public class OutboxRelay {
     }
     private static byte[] bytes(String s) { return s.getBytes(StandardCharsets.UTF_8); }
 }
-
