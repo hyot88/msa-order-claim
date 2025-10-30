@@ -102,46 +102,46 @@ public class OrderService {
         orderRepo.save(order);
 
         // 승인 이벤트도 Outbox에 기록 (선언적 일관성 유지)
-        try {
-            log.info("Creating order approval event with ID: {}", orderId);
-
-            var evt = OrderEvents.OrderApproved.builder()
-                    .orderId(orderId).approvedAt(Instant.now()).build();
-            JsonNode payload = om.valueToTree(evt); // evt -> JsonNode
-
-            // 현재 스팬의 컨텍스트를 헤더에 주입
-            Map<String, String> headerMap = new HashMap<>();
-
-            // 기존 방식의 traceId 헤더도 호환성을 위해 유지
-            String traceId = Optional.ofNullable(tracer.currentSpan())
-                    .map(span -> span.context().traceId())
-                    .orElse(null);
-
-            if (tracer.currentSpan() != null) {
-                propagator.inject(tracer.currentSpan().context(), headerMap, 
-                        (carrier, key, value) -> carrier.put(key, value));
-                log.debug("Injected trace context into headers: {}", headerMap);
-            }
-
-            // 주입된 헤더를 JSON으로 변환
-            ObjectNode headers = om.createObjectNode()
-                    .put("traceId", traceId)
-                    .put("eventSource", "order-service");
-
-            // 트레이싱 헤더 추가
-            for (Map.Entry<String, String> entry : headerMap.entrySet()) {
-                headers.put(entry.getKey(), entry.getValue());
-            }
-
-            outboxRepo.save(OutboxEvent.builder()
-                    .aggregateType("ORDER")
-                    .aggregateId(orderId.toString())
-                    .type("OrderApproved")
-                    .payload(payload)
-                    .headers(headers)
-                    .published(false)
-                    .build());
-        } catch (Exception e) { throw new RuntimeException(e); }
+//        try {
+//            log.info("Creating order approval event with ID: {}", orderId);
+//
+//            var evt = OrderEvents.OrderApproved.builder()
+//                    .orderId(orderId).approvedAt(Instant.now()).build();
+//            JsonNode payload = om.valueToTree(evt); // evt -> JsonNode
+//
+//            // 현재 스팬의 컨텍스트를 헤더에 주입
+//            Map<String, String> headerMap = new HashMap<>();
+//
+//            // 기존 방식의 traceId 헤더도 호환성을 위해 유지
+//            String traceId = Optional.ofNullable(tracer.currentSpan())
+//                    .map(span -> span.context().traceId())
+//                    .orElse(null);
+//
+//            if (tracer.currentSpan() != null) {
+//                propagator.inject(tracer.currentSpan().context(), headerMap,
+//                        (carrier, key, value) -> carrier.put(key, value));
+//                log.debug("Injected trace context into headers: {}", headerMap);
+//            }
+//
+//            // 주입된 헤더를 JSON으로 변환
+//            ObjectNode headers = om.createObjectNode()
+//                    .put("traceId", traceId)
+//                    .put("eventSource", "order-service");
+//
+//            // 트레이싱 헤더 추가
+//            for (Map.Entry<String, String> entry : headerMap.entrySet()) {
+//                headers.put(entry.getKey(), entry.getValue());
+//            }
+//
+//            outboxRepo.save(OutboxEvent.builder()
+//                    .aggregateType("ORDER")
+//                    .aggregateId(orderId.toString())
+//                    .type("OrderApproved")
+//                    .payload(payload)
+//                    .headers(headers)
+//                    .published(false)
+//                    .build());
+//        } catch (Exception e) { throw new RuntimeException(e); }
     }
 
     @Transactional
@@ -149,44 +149,44 @@ public class OrderService {
         Order order = orderRepo.findById(orderId).orElseThrow();
         order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
-        try {
-            log.info("Creating order cancellation event with ID: {}, reason: {}", orderId, reason);
-
-            var evt = OrderEvents.OrderCancelled.builder()
-                    .orderId(orderId).reason(reason).cancelledAt(Instant.now()).build();
-            JsonNode payload = om.valueToTree(evt); // evt -> JsonNode
-
-            // 현재 스팬의 컨텍스트를 헤더에 주입
-            Map<String, String> headerMap = new HashMap<>();
-
-            // 기존 방식의 traceId 헤더도 호환성을 위해 유지
-            String traceId = Optional.ofNullable(tracer.currentSpan())
-                    .map(span -> span.context().traceId())
-                    .orElse(null);
-
-            if (tracer.currentSpan() != null) {
-                propagator.inject(tracer.currentSpan().context(), headerMap, 
-                        (carrier, key, value) -> carrier.put(key, value));
-                log.debug("Injected trace context into headers: {}", headerMap);
-            }
-
-            // 주입된 헤더를 JSON으로 변환
-            ObjectNode headers = om.createObjectNode()
-                    .put("traceId", traceId)
-                    .put("eventSource", "order-service");
-
-            // 트레이싱 헤더 추가
-            for (Map.Entry<String, String> entry : headerMap.entrySet()) {
-                headers.put(entry.getKey(), entry.getValue());
-            }
-            outboxRepo.save(OutboxEvent.builder()
-                    .aggregateType("ORDER")
-                    .aggregateId(orderId.toString())
-                    .type("OrderCancelled")
-                    .payload(payload)
-                    .headers(headers)
-                    .published(false)
-                    .build());
-        } catch (Exception e) { throw new RuntimeException(e); }
+//        try {
+//            log.info("Creating order cancellation event with ID: {}, reason: {}", orderId, reason);
+//
+//            var evt = OrderEvents.OrderCancelled.builder()
+//                    .orderId(orderId).reason(reason).cancelledAt(Instant.now()).build();
+//            JsonNode payload = om.valueToTree(evt); // evt -> JsonNode
+//
+//            // 현재 스팬의 컨텍스트를 헤더에 주입
+//            Map<String, String> headerMap = new HashMap<>();
+//
+//            // 기존 방식의 traceId 헤더도 호환성을 위해 유지
+//            String traceId = Optional.ofNullable(tracer.currentSpan())
+//                    .map(span -> span.context().traceId())
+//                    .orElse(null);
+//
+//            if (tracer.currentSpan() != null) {
+//                propagator.inject(tracer.currentSpan().context(), headerMap,
+//                        (carrier, key, value) -> carrier.put(key, value));
+//                log.debug("Injected trace context into headers: {}", headerMap);
+//            }
+//
+//            // 주입된 헤더를 JSON으로 변환
+//            ObjectNode headers = om.createObjectNode()
+//                    .put("traceId", traceId)
+//                    .put("eventSource", "order-service");
+//
+//            // 트레이싱 헤더 추가
+//            for (Map.Entry<String, String> entry : headerMap.entrySet()) {
+//                headers.put(entry.getKey(), entry.getValue());
+//            }
+//            outboxRepo.save(OutboxEvent.builder()
+//                    .aggregateType("ORDER")
+//                    .aggregateId(orderId.toString())
+//                    .type("OrderCancelled")
+//                    .payload(payload)
+//                    .headers(headers)
+//                    .published(false)
+//                    .build());
+//        } catch (Exception e) { throw new RuntimeException(e); }
     }
 }
