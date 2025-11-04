@@ -1,0 +1,29 @@
+flowchart TD
+    A[Client] -->|1: POST /orders| B[API Gateway]
+    B -->|2: 서비스 조회| C[Eureka]
+    C -->|3: 서비스 인스턴스 반환| B
+    B -->|4: 주문 생성 요청| D[order-service]
+
+    D -->|5: 주문 생성| E[(orders DB)]
+    D -->|6: 이벤트 저장| F[(outbox_event)]
+
+    G[outbox-relay] -->|7: 미발행 이벤트 조회| F
+    G -->|8: 이벤트 발행| H[Kafka: order.events]
+    G -->|9: 발행 상태 업데이트| F
+
+    H -->|10: 이벤트 소비| I[inventory-service]
+    I -->|11: 재고 확인| I
+    I -->|12: 재고 확인 결과 발행| J[Kafka: inventory.events]
+
+    J -->|13: 재고 확인 결과 소비| K[payment-service]
+    K -->|14: 결제 처리| K
+    K -->|15: 결제 결과 발행| L[Kafka: payment.events]
+
+    L -->|16: 결제 결과 소비| D
+    D -->|17: 주문 상태 업데이트| E
+
+    style E fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#f9f,stroke:#333,stroke-width:2px
+    style H fill:#bbf,stroke:#333,stroke-width:2px
+    style J fill:#bbf,stroke:#333,stroke-width:2px
+    style L fill:#bbf,stroke:#333,stroke-width:2px
