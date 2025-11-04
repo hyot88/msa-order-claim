@@ -85,6 +85,7 @@ public class OrderService {
                     .aggregateId(orderId.toString())
                     .type("OrderCreated")
                     .payload(payload)
+                    .payload_hash(sha256(payload.asText())) // 논리적 중복 이벤트 인서트를 DB 레벨에서 한번 더 차단
                     .headers(headers)
                     .published(false)
                     .build());
@@ -93,6 +94,16 @@ public class OrderService {
         }
 
         return orderId;
+    }
+
+    private String sha256(String s) {
+        try {
+            var md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] d = md.digest(s.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : d) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (Exception e) { throw new RuntimeException(e); }
     }
 
     @Transactional

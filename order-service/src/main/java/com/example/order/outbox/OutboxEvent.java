@@ -8,7 +8,8 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
-@Entity @Table(name="outbox_event")
+@Entity @Table(name="outbox_event",
+        uniqueConstraints = @UniqueConstraint(name="uk_outbox_once", columnNames = {"aggregate_id", "type", "payload_hash"}))
 @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
 public class OutboxEvent {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,6 +22,7 @@ public class OutboxEvent {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private JsonNode payload;       // 또는 ObjectNode, Map<String,Object>
+    private String payload_hash;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
