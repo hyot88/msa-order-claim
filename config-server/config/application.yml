@@ -1,0 +1,4 @@
+config:
+  test: good
+
+# http://localhost:8888/application/default
