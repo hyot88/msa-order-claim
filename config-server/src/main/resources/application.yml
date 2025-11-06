@@ -6,7 +6,7 @@ spring:
       server:
         git:
           uri: https://github.com/hyot88/msa-order-claim
-          searchPaths: config-server/src/main/resources
+          searchPaths: config-server/config
           default-label: master
 
 # http://localhost:8888/application/default
