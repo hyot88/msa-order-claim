@@ -5,4 +5,10 @@ spring:
     config:
       server:
         git:
-          uri: https://github.com/hyot88
+          uri: https://github.com/hyot88/msa-order-claim
+          searchPaths: config-server/src/main/resources
+          default-label: master
+
+failRate:
+  inventory: 1.0
+  payment: 1.0

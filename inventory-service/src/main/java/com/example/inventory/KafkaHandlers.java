@@ -1,5 +1,6 @@
 package com.example.inventory;
 
+import com.example.inventory.config.FailRateProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.tracing.Tracer;
@@ -31,9 +32,7 @@ public class KafkaHandlers {
     private final KafkaTemplate<String, String> kafka;
     private final Tracer tracer;
     private final Propagator propagator;
-
-    @Value("${inventory.failRate:0.0}")
-    double failRate;
+    private final FailRateProperties failRateProperties;
 
     @KafkaListener(topics = "order.events") // 👈 containerFactory 지정 불필요(기본 bean 사용)
     public void onOrderEvents(ConsumerRecord<String, String> rec) throws Exception {
@@ -95,7 +94,7 @@ public class KafkaHandlers {
                 span.tag("orderId", orderId.toString());
 
                 // 재고 관리 시스템에서 재고 부족 상황을 인위적으로 시뮬레이션하기 위해 사용
-                boolean fail = ThreadLocalRandom.current().nextDouble() < failRate;
+                boolean fail = ThreadLocalRandom.current().nextDouble() < failRateProperties.getInventory();
                 span.tag("inventoryCheck", fail ? "failed" : "success");
 
                 Map<String, Object> evt = fail
