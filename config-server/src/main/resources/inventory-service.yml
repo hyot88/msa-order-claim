@@ -1,0 +1,4 @@
+failRate:
+  inventory: 2.0
+
+# http://localhost:8888/inventory-service/default

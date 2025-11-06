@@ -1,0 +1,4 @@
+failRate:
+  payment: 3.0
+
+# http://localhost:8888/payment-service/default

@@ -1,6 +1,6 @@
 package com.example.payment;
 
-import com.example.payment.config.FailRateProperties;
+import com.example.payment.config.ServiceProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.tracing.Tracer;
@@ -11,7 +11,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -31,7 +30,7 @@ public class KafkaHandlers {
     private final ObjectMapper om;
     private final Tracer tracer;
     private final Propagator propagator;
-    private final FailRateProperties failRateProperties;
+    private final ServiceProperties serviceProperties;
 
     @KafkaListener(topics = "inventory.events", groupId = "payment")
     public void onInventoryEvents(ConsumerRecord<String, String> rec) throws Exception {
@@ -126,7 +125,7 @@ public class KafkaHandlers {
                 }
 
                 // 결제 관리 시스템에서 결제 실패 상황을 인위적으로 시뮬레이션하기 위해 사용
-                boolean fail = ThreadLocalRandom.current().nextDouble() < failRateProperties.getPayment();
+                boolean fail = ThreadLocalRandom.current().nextDouble() < serviceProperties.getPayment();
                 span.tag("paymentCheck", fail ? "failed" : "success");
 
                 Map<String, Object> evt;

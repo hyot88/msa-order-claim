@@ -9,6 +9,4 @@ spring:
           searchPaths: config-server/src/main/resources
           default-label: master
 
-failRate:
-  inventory: 1.0
-  payment: 1.0
+# http://localhost:8888/application/default

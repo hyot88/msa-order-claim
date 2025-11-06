@@ -1,6 +1,6 @@
 package com.example.inventory;
 
-import com.example.inventory.config.FailRateProperties;
+import com.example.inventory.config.ServiceProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.tracing.Tracer;
@@ -11,7 +11,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -32,7 +31,7 @@ public class KafkaHandlers {
     private final KafkaTemplate<String, String> kafka;
     private final Tracer tracer;
     private final Propagator propagator;
-    private final FailRateProperties failRateProperties;
+    private final ServiceProperties serviceProperties;
 
     @KafkaListener(topics = "order.events") // 👈 containerFactory 지정 불필요(기본 bean 사용)
     public void onOrderEvents(ConsumerRecord<String, String> rec) throws Exception {
@@ -94,7 +93,7 @@ public class KafkaHandlers {
                 span.tag("orderId", orderId.toString());
 
                 // 재고 관리 시스템에서 재고 부족 상황을 인위적으로 시뮬레이션하기 위해 사용
-                boolean fail = ThreadLocalRandom.current().nextDouble() < failRateProperties.getInventory();
+                boolean fail = ThreadLocalRandom.current().nextDouble() < serviceProperties.getInventory();
                 span.tag("inventoryCheck", fail ? "failed" : "success");
 
                 Map<String, Object> evt = fail
