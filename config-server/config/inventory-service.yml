@@ -1,5 +1,5 @@
 failRate:
-  inventory: 2.0
+  inventory: 0.0
 
 # http://localhost:8888/inventory-service/default
 # http://localhost:9002/actuator/refresh
