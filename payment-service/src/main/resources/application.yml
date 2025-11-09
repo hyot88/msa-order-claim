@@ -9,12 +9,12 @@ spring:
     consumer:
       group-id: payment
       auto-offset-reset: earliest
-      # 오토컨피그가 아래 직렬화 기본값을 넣지만, 명시해두면 확실함
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      # 오토컨피그가 아래 직렬화 기본값을 넣지만, 명시해두면 확실함
+#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#    producer:
+#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      value-serializer: org.apache.kafka.common.serialization.StringSerializer
   config:
     import: "optional:configserver:http://localhost:8888"
   cloud:
