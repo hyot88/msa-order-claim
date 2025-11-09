@@ -3,3 +3,4 @@ failRate:
 
 # http://localhost:8888/payment-service/default
 # http://localhost:9003/actuator/refresh
+# http://localhost:9003/actuator/busrefresh

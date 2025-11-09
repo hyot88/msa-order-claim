@@ -3,3 +3,4 @@ failRate:
 
 # http://localhost:8888/inventory-service/default
 # http://localhost:9002/actuator/refresh
+# http://localhost:9002/actuator/busrefresh
