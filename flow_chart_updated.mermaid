@@ -1,0 +1,92 @@
+flowchart LR
+    %% 인증 및 API 게이트웨이 영역
+    subgraph Authentication
+        A[Client] -->|1: 인증 요청| M[Keycloak]
+        M -->|2: 토큰 발급| A
+    end
+
+    subgraph Gateway
+        B[API Gateway]
+        N[Fallback]
+        C[Eureka]
+    end
+
+    %% 주문 서비스 영역
+    subgraph OrderService
+        D[order-service]
+        subgraph orders_db
+            E[(orders)]
+            F[(outbox_event)]
+        end
+    end
+
+    %% 스케줄러/배치 영역
+    subgraph Scheduler
+        G[outbox-relay]
+    end
+
+    %% 설정 서버
+    O[Config Server]
+
+    %% 카프카 토픽들
+    subgraph KafkaTopics
+        H[Kafka: order.events]
+        J[Kafka: inventory.events]
+        L[Kafka: payment.events]
+    end
+
+    %% 인벤토리 서비스
+    subgraph InventoryService
+        I[inventory-service]
+    end
+
+    %% 결제 서비스
+    subgraph PaymentService
+        K[payment-service]
+    end
+
+    %% 연결 정의
+    A -->|3: POST /orders with token| B
+    B -->|4: 토큰 검증| M
+    M -->|5: 토큰 유효성 응답| B
+
+    B -->|6: 서비스 조회| C
+    C -->|7: 서비스 인스턴스 반환| B
+
+    B -->|8: 주문 생성 요청| D
+    B -->|Circuit Breaker| N
+
+    D -->|9: 주문 생성| E
+    D -->|10: 이벤트 저장| F
+
+    G -->|11: 미발행 이벤트 조회| F
+    G -->|12: 이벤트 발행| H
+    G -->|13: 발행 상태 업데이트| F
+
+    H -->|14: 이벤트 소비| I
+    I -.->|설정 참조| O
+    I -->|15: 재고 확인| I
+    I -->|16: 재고 확인 결과 발행| J
+
+    J -->|17: 재고 확인 결과 소비| K
+    K -.->|설정 참조| O
+    K -->|18: 결제 처리| K
+    K -->|19: 결제 결과 발행| L
+
+    L -->|20: 결제 결과 소비| D
+    D -->|21: 주문 상태 업데이트| E
+
+    %% Config 갱신 프로세스
+    I -.->|refresh/busrefresh| O
+    K -.->|refresh/busrefresh| O
+
+    %% 스타일 정의
+    style orders_db stroke:#333,stroke-width:2px
+    style E fill:#fff,stroke:#333,stroke-width:1px
+    style F fill:#fff,stroke:#333,stroke-width:1px
+    style H fill:#bbf,stroke:#333,stroke-width:2px
+    style J fill:#bbf,stroke:#333,stroke-width:2px
+    style L fill:#bbf,stroke:#333,stroke-width:2px
+    style M fill:#fbb,stroke:#333,stroke-width:2px
+    style N fill:#fbb,stroke:#333,stroke-width:2px
+    style O fill:#bfb,stroke:#333,stroke-width:2px
