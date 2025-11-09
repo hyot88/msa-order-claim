@@ -9,12 +9,12 @@ spring:
     consumer:
       group-id: payment
       auto-offset-reset: earliest
-#      # 오토컨피그가 아래 직렬화 기본값을 넣지만, 명시해두면 확실함
-#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-#      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-#    producer:
-#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-#      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # 오토컨피그가 아래 직렬화 기본값을 넣지만, 명시해두면 확실함
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
   config:
     import: "optional:configserver:http://localhost:8888"
   cloud:
@@ -25,6 +25,22 @@ spring:
         initial-interval: 1000
         max-interval: 2000
         multiplier: 1.1
+    bus:
+      destination: springCloudBus   # 기본값이긴 하지만 명시해두면 좋음
+    stream:
+      # Bus 바인딩 이름은 고정(springCloudBusInput / springCloudBusOutput)
+      kafka:
+        bindings:
+          springCloudBusInput:
+            consumer:
+              configuration:
+                key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
+                value.deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+          springCloudBusOutput:
+            producer:
+              configuration:
+                key.serializer: org.apache.kafka.common.serialization.StringSerializer
+                value.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
 
 eureka:
   client:
