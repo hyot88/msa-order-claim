@@ -60,7 +60,8 @@ Spring Boot와 Spring Cloud로 구축된 마이크로서비스 기반 주문 및
 
 ## 시스템 아키텍처
 
-![시스템 아키텍처](flow_chart.svg)
+<a href="flow_chart.svg" target="_blank"><img src="flow_chart.svg" alt="시스템 아키텍처"></a>
+
 
 시스템은 다음과 같은 흐름으로 이벤트 기반 마이크로서비스 아키텍처를 따릅니다:
 1. 클라이언트가 Keycloak으로 인증하고 토큰을 받습니다
@@ -73,7 +74,7 @@ Spring Boot와 Spring Cloud로 구축된 마이크로서비스 기반 주문 및
 
 모든 서비스 간 통신에서 traceId가 전파되어 전체 요청 흐름을 추적할 수 있습니다. 이를 통해 복잡한 마이크로서비스 환경에서도 요청의 전체 경로를 쉽게 파악하고 문제를 진단할 수 있습니다.
 
-![Zipkin](zipkin.png)
+<a href="zipkin.png" target="_blank"><img src="zipkin.png" alt="Zipkin"></a>
 
 ## API 엔드포인트
 
@@ -84,10 +85,10 @@ Spring Boot와 Spring Cloud로 구축된 마이크로서비스 기반 주문 및
 
 ### 주문 서비스 (포트: 9001)
 - **POST /orders**: 새 주문 생성
-  - 요청 본문: `{ "userId": "string", "totalAmount": number }`
-  - 응답: 주문 ID (UUID)
+    - 요청 본문: `{ "userId": "string", "totalAmount": number }`
+    - 응답: 주문 ID (UUID)
 - **GET /orders/{id}**: ID로 주문 세부 정보 가져오기
-  - 응답: 주문 세부 정보
+    - 응답: 주문 세부 정보
 
 ### 클레임 서비스
 - **POST /claims**: 새 클레임 생성
@@ -107,10 +108,10 @@ docker-compose -f docker/docker-compose.yml up -d
 ```
 
 2. 다음 순서로 서비스 시작:
-   - discovery
-   - config-server
-   - order-service, payment-service, inventory-service
-   - api-gateway
+- discovery
+- config-server
+- order-service, payment-service, inventory-service
+- api-gateway
 
 ## 개발 로드맵
 
