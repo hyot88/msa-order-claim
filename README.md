@@ -60,7 +60,7 @@ Spring Boot와 Spring Cloud로 구축된 마이크로서비스 기반 주문 및
 
 ## 시스템 아키텍처
 
-[![시스템 아키텍처](flow_chart.svg)](flow_chart.svg?raw=true)
+<a href="flow_chart.svg" target="_blank"><img src="flow_chart.svg" alt="시스템 아키텍처"></a>
 
 
 시스템은 다음과 같은 흐름으로 이벤트 기반 마이크로서비스 아키텍처를 따릅니다:
@@ -74,7 +74,7 @@ Spring Boot와 Spring Cloud로 구축된 마이크로서비스 기반 주문 및
 
 모든 서비스 간 통신에서 traceId가 전파되어 전체 요청 흐름을 추적할 수 있습니다. 이를 통해 복잡한 마이크로서비스 환경에서도 요청의 전체 경로를 쉽게 파악하고 문제를 진단할 수 있습니다.
 
-[![Zipkin](zipkin.png)](zipkin.png?raw=true)
+<a href="zipkin.png" target="_blank"><img src="zipkin.png" alt="Zipkin"></a>
 
 ## API 엔드포인트
 
