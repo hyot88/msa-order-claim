@@ -40,7 +40,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,refresh
+        include: health,info,prometheus,refresh,busrefresh
   tracing:
     sampling:
       probability: 1.0  # Zipkin 확인용
