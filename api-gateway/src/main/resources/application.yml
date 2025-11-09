@@ -10,6 +10,8 @@ spring:
       bootstrap-servers: kafka:9092
   cloud:
     gateway:
+      httpclient:
+        response-timeout: 3s     # 전체 HTTP 응답 타임아웃
       discovery:
         locator:
           enabled: true  # eureka 서비스명으로 라우팅
@@ -18,11 +20,31 @@ spring:
           uri: lb://order-service
           predicates:
             - Path=/orders/**
-
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: orderCircuitBreaker
+                fallbackUri: forward:/fallback/orders
         - id: claim
           uri: lb://claim-service
           predicates:
             - Path=/claims/**
+
+# Circuit Breaker 동작 흐름
+#1. CLOSED (정상) → 실패율 50% 초과 시 → OPEN (차단)
+#2. OPEN → 10초 대기 후 → HALF_OPEN (반개방)
+#3. HALF_OPEN → 3회 테스트 호출 결과에 따라 CLOSED 또는 OPEN으로 전환
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      orderCircuitBreaker:
+        slidingWindowType: COUNT_BASED # 슬라이딩 윈도우 타입을 호출 횟수 기반으로 설정, 대안으로는 시간 기반으로`TIME_BASED`
+        slidingWindowSize: 10 # 최근 10개의 호출 결과를 기준으로 상태를 판단
+        failureRateThreshold: 50 # 실패율이 50%를 초과하면 Circuit Breaker가 OPEN 상태로 전환
+        minimumNumberOfCalls: 5 # 5회 미만의 호출로는 Circuit Breaker가 작동하지 않음
+        waitDurationInOpenState: 10s # OPEN 상태에서 대기 시간 10초, 10초 후 HALF_OPEN 상태로 전환
+        permittedNumberOfCallsInHalfOpenState: 3 # HALF_OPEN 상태에서 허용되는 호출 횟수 3회, 이 3회 호출의 결과로 CLOSED 또는 OPEN 상태 결정
 
 eureka:
   client:
