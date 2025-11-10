@@ -60,7 +60,7 @@ Spring Boot와 Spring Cloud로 구축된 마이크로서비스 기반 주문 및
 
 ## 시스템 아키텍처
 
-[![시스템 아키텍처](flow_chart.svg)](flow_chart.svg?raw=true)
+[![시스템 아키텍처](flow_chart.png)](flow_chart.png?raw=true)
 
 
 시스템은 다음과 같은 흐름으로 이벤트 기반 마이크로서비스 아키텍처를 따릅니다:
