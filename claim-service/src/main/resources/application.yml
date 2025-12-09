@@ -1,35 +1,27 @@
 server:
-  port: 8080 #?
+  port: 9004
 
 spring:
   application:
     name: claim-service
-    main:
-      web-application-type: servlet
-    kafka:
-      bootstrap-servers: kafka:9092
-  cloud:
-    gateway:
-      discovery:
-        locator:
-          enabled: true  # eureka 서비스명으로 라우팅
-      routes:
-        - id: order
-          uri: lb://order-service
-          predicates:
-            - Path=/orders/**
-
-        - id: claim
-          uri: lb://claim-service
-          predicates:
-            - Path=/claims/**
+  datasource:
+    url: jdbc:postgresql://localhost:5434/claimdb
+    username: claim
+    password: claim
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  kafka:
+    bootstrap-servers: localhost:29092
 
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://localhost:8761/eureka  # 도커 네트워크 안 붙일거면 localhost
-    fetchRegistry: true
-    registerWithEureka: true
+      defaultZone: http://localhost:8761/eureka
 
 management:
   endpoints:
@@ -38,6 +30,6 @@ management:
         include: health,info,prometheus
   tracing:
     sampling:
-      probability: 1.0  # Zipkin 확인용
+      probability: 1.0
     propagation:
       type: B3,W3C

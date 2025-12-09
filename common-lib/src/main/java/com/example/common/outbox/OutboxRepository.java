@@ -1,12 +1,14 @@
-package com.example.outbox;
+package com.example.common.outbox;
 
-import org.springframework.data.jpa.repository.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> {
+public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
 
     @Transactional
     @Query(value = """
@@ -19,7 +21,6 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> 
         """, nativeQuery = true)
     List<OutboxEvent> lockAndFetchRaw(@Param("limit") int limit);
 
-    // (옵션) 벌크 업데이트가 필요할 때 사용 가능. 이번 구현은 엔티티 변경 flush로 처리하므로 필수는 아님.
     @Modifying
     @Transactional
     @Query(value = "UPDATE outbox_event SET published = true WHERE id IN (:ids)", nativeQuery = true)

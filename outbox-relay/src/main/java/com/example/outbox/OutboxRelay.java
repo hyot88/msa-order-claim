@@ -1,5 +1,7 @@
 package com.example.outbox;
 
+import com.example.common.outbox.OutboxEvent;
+import com.example.common.outbox.OutboxRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.tracing.Tracer;
@@ -26,7 +28,7 @@ import java.util.Map;
 @Slf4j
 public class OutboxRelay {
 
-    private final OutboxEventRepository repo;
+    private final OutboxRepository repo;
     private final KafkaTemplate<String, String> kafka;
     private final ObjectMapper om;
 
