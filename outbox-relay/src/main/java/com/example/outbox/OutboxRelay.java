@@ -22,6 +22,39 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Outbox 이벤트를 Kafka로 중계하는 핵심 컴포넌트
+ *
+ * <h3>Outbox 패턴 구현의 핵심:</h3>
+ * 이 클래스는 Transactional Outbox 패턴의 "Relay" 역할을 담당합니다.
+ * 서비스들이 데이터베이스에 저장한 이벤트를 주기적으로 폴링하여
+ * Kafka로 발행함으로써 이벤트의 at-least-once 전달을 보장합니다.
+ *
+ * <h3>동작 흐름:</h3>
+ * 1. 500ms마다 pump() 메서드가 자동 실행 (@Scheduled)
+ * 2. outbox_event 테이블에서 published=false인 이벤트를 최대 50개 조회
+ * 3. FOR UPDATE SKIP LOCKED로 다중 인스턴스 환경에서도 중복 처리 방지
+ * 4. 각 이벤트를 적절한 Kafka 토픽으로 발행
+ * 5. 발행 성공 시 published=true로 업데이트 (dirty checking)
+ * 6. 트랜잭션 커밋 시점에 DB 업데이트 일괄 반영
+ *
+ * <h3>분산 추적 (Distributed Tracing):</h3>
+ * - OutboxEvent의 headers에서 부모 Span 컨텍스트를 복원
+ * - 새로운 자식 Span을 생성하여 Kafka 헤더에 주입
+ * - Zipkin에서 order-service → outbox-relay → kafka → consumer로 이어지는 흐름 추적 가능
+ *
+ * <h3>이벤트 라우팅:</h3>
+ * - OrderCreated, OrderApproved, OrderCancelled → "order.events" 토픽
+ * - 향후 다른 이벤트 타입 추가 시 switch 문에서 라우팅 로직 확장
+ *
+ * <h3>다중 인스턴스 지원:</h3>
+ * outbox-relay를 여러 인스턴스로 실행해도 FOR UPDATE SKIP LOCKED 덕분에
+ * 각 이벤트는 정확히 한 인스턴스에서만 처리됩니다.
+ *
+ * <h3>에러 처리:</h3>
+ * - Kafka 발행 실패 시 published=false로 유지되어 다음 폴링에서 재시도
+ * - 트랜잭션 롤백을 방지하기 위해 예외를 잡아서 로깅만 수행
+ */
 @Component
 @EnableScheduling
 @RequiredArgsConstructor
@@ -32,15 +65,35 @@ public class OutboxRelay {
     private final KafkaTemplate<String, String> kafka;
     private final ObjectMapper om;
 
-    private final Tracer tracer;
-    private final Propagator propagator;
+    private final Tracer tracer; // Micrometer Tracing - Span 생성 및 관리
+    private final Propagator propagator; // 분산 추적 컨텍스트 전파 (B3, W3C)
 
+    /** 한 번에 처리할 최대 이벤트 수 (기본값: 50) */
     @Value("${relay.batchSize:50}") int batchSize;
 
+    /**
+     * 미발행 이벤트를 주기적으로 폴링하여 Kafka로 발행
+     *
+     * <h3>실행 주기:</h3>
+     * fixedDelay = 500ms (이전 실행이 완료된 후 500ms 대기)
+     *
+     * <h3>@Transactional의 역할:</h3>
+     * - lockAndFetchRaw()가 FOR UPDATE로 행 잠금
+     * - published 플래그 업데이트 (dirty checking)
+     * - 트랜잭션 커밋 시 모든 변경사항 일괄 반영
+     *
+     * <h3>처리 단계:</h3>
+     * 1. DB 조회: published=false인 이벤트를 batchSize만큼 조회 (행 잠금)
+     * 2. 분산 추적: OutboxEvent.headers에서 부모 Span 컨텍스트 복원
+     * 3. 토픽 결정: 이벤트 타입에 따라 적절한 Kafka 토픽 선택
+     * 4. Kafka 발행: 페이로드와 헤더(tracing context 포함)를 Kafka로 전송
+     * 5. 상태 업데이트: published=true로 변경 (dirty checking)
+     * 6. 트랜잭션 커밋: DB 업데이트 일괄 반영
+     */
     @Scheduled(fixedDelayString = "${relay.pollMs:500}")
     @Transactional
     public void pump() {
-        // 1) unpublished 행들을 락걸고 가져오기
+        // 1단계: 미발행 이벤트 조회 (FOR UPDATE SKIP LOCKED)
         List<OutboxEvent> events = repo.lockAndFetchRaw(batchSize);
         if (events.isEmpty()) return;
 

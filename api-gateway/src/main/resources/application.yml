@@ -26,10 +26,15 @@ spring:
           predicates:
             - Path=/claims/**
 
-# Circuit Breaker 동작 흐름
-#1. CLOSED (정상) → 실패율 50% 초과 시 → OPEN (차단)
-#2. OPEN → 10초 대기 후 → HALF_OPEN (반개방)
-#3. HALF_OPEN → 3회 테스트 호출 결과에 따라 CLOSED 또는 OPEN으로 전환
+# Circuit Breaker 동작 흐름 (Resilience4j)
+# 1. CLOSED (정상) → 실패율 50% 초과 시 → OPEN (차단)
+# 2. OPEN → 10초 대기 후 → HALF_OPEN (반개방)
+# 3. HALF_OPEN → 3회 테스트 호출 결과에 따라 CLOSED 또는 OPEN으로 전환
+#
+# Circuit Breaker의 장점:
+# - 장애가 발생한 서비스에 계속 요청을 보내지 않아 시스템 전체의 성능 저하 방지
+# - 빠른 실패(Fail-Fast)로 사용자에게 빠르게 응답 제공
+# - 장애 서비스가 복구될 시간 확보
 
 resilience4j:
   circuitbreaker:

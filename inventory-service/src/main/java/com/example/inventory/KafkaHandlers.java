@@ -22,6 +22,27 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * 재고 서비스 Kafka 이벤트 핸들러
+ *
+ * <h3>주요 역할:</h3>
+ * 주문 Saga의 첫 번째 단계로, OrderCreated 이벤트를 수신하여
+ * 재고 확인/예약을 처리하고 결과를 inventory.events 토픽으로 발행합니다.
+ *
+ * <h3>Saga 흐름:</h3>
+ * 1. OrderCreated 이벤트 수신 (order.events 토픽)
+ * 2. 재고 확인 로직 실행 (시뮬레이션)
+ * 3-a. 성공 시: InventoryReserved 이벤트 발행 → payment-service로 전달
+ * 3-b. 실패 시: InventoryReservationFailed 이벤트 발행 → order-service가 주문 취소
+ *
+ * <h3>분산 추적:</h3>
+ * Kafka 헤더에서 부모 Span 컨텍스트를 추출하고 새로운 자식 Span을 생성하여
+ * 전체 주문 흐름을 Zipkin에서 추적할 수 있습니다.
+ *
+ * <h3>실패 시뮬레이션:</h3>
+ * ServiceProperties.inventory 값(0.0~1.0)에 따라 확률적으로 재고 부족 시나리오를
+ * 시뮬레이션합니다. (예: 0.2 = 20% 확률로 재고 부족 발생)
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -29,20 +50,30 @@ public class KafkaHandlers {
 
     private final ObjectMapper om;
     private final KafkaTemplate<String, String> kafka;
-    private final Tracer tracer;
-    private final Propagator propagator;
-    private final ServiceProperties serviceProperties;
+    private final Tracer tracer; // Micrometer Tracing
+    private final Propagator propagator; // 분산 추적 컨텍스트 전파
+    private final ServiceProperties serviceProperties; // 실패율 설정
 
-    @KafkaListener(topics = "order.events") // 👈 containerFactory 지정 불필요(기본 bean 사용)
+    /**
+     * order.events 토픽에서 OrderCreated 이벤트를 수신하여 재고 처리
+     *
+     * <h3>처리 흐름:</h3>
+     * 1. 분산 추적 컨텍스트 추출 및 Span 생성
+     * 2. OrderCreated 이벤트 유효성 검증
+     * 3. 재고 확인 (실제 시스템에서는 DB 조회 및 업데이트)
+     * 4. 성공/실패에 따라 InventoryReserved 또는 InventoryReservationFailed 이벤트 발행
+     * 5. 분산 추적 컨텍스트를 Kafka 헤더에 주입하여 다음 서비스로 전파
+     *
+     * @param rec Kafka 메시지 (key: orderId, value: OrderCreated JSON)
+     * @throws Exception 처리 실패 시 (Kafka가 재시도)
+     */
+    @KafkaListener(topics = "order.events")
     public void onOrderEvents(ConsumerRecord<String, String> rec) throws Exception {
-        // 스팬 생성을 위한 변수
         io.micrometer.tracing.Span span = null;
 
         try {
-            // Kafka 헤더에서 트레이싱 컨텍스트 추출을 위한 캐리어 생성
+            // 1단계: Kafka 헤더에서 분산 추적 컨텍스트 추출
             Map<String, String> carrier = new HashMap<>();
-
-            // Kafka 헤더를 캐리어에 복사
             rec.headers().forEach(header -> {
                 String key = header.key();
                 String value = new String(header.value(), StandardCharsets.UTF_8);
@@ -50,13 +81,13 @@ public class KafkaHandlers {
                 log.debug("Header found: {}={}", key, value);
             });
 
-            // Propagator를 사용하여 부모 컨텍스트 추출
-            Propagator.Getter<Map<String, String>> getter = 
+            // 2단계: Propagator로 부모 Span 컨텍스트 복원
+            Propagator.Getter<Map<String, String>> getter =
                 (carrierMap, key) -> carrierMap.get(key);
 
             io.micrometer.tracing.Span.Builder spanBuilder = propagator.extract(carrier, getter);
 
-            // 자식 스팬 생성
+            // 3단계: 자식 Span 생성 (부모가 있으면 연결, 없으면 새 trace 시작)
             if (spanBuilder != null) {
                 span = spanBuilder
                         .name("inventory-process-order-event")
@@ -65,7 +96,6 @@ public class KafkaHandlers {
                         .tag("offset", String.valueOf(rec.offset()))
                         .start();
             } else {
-                // 부모 컨텍스트가 없는 경우 새 스팬 시작
                 span = tracer.nextSpan()
                         .name("inventory-process-order-event")
                         .tag("topic", rec.topic())
@@ -74,16 +104,16 @@ public class KafkaHandlers {
                         .start();
             }
 
-            // 현재 스팬을 활성화
+            // 4단계: Span 활성화 및 비즈니스 로직 실행
             try (io.micrometer.tracing.Tracer.SpanInScope ws = tracer.withSpan(span)) {
                 log.info("[inventory] consume topic={} key={} value={}", rec.topic(), rec.key(), rec.value());
 
-                // 기존 traceId 헤더 추출 (호환성 유지)
+                // traceId 추출 (기존 방식 호환성)
                 Header h = rec.headers().lastHeader("traceId");
                 String traceId = h != null ? new String(h.value(), StandardCharsets.UTF_8) : span.context().traceId();
 
+                // 5단계: 메시지 파싱 및 유효성 검증
                 JsonNode node = om.readTree(rec.value());
-                // 우리가 발행한 OrderCreated 포맷인지 확인
                 if (!node.has("orderId") || !node.has("userId") || !node.has("totalAmount")) {
                     log.debug("[inventory] ignore non-OrderCreated payload");
                     return;
@@ -92,7 +122,9 @@ public class KafkaHandlers {
                 UUID orderId = UUID.fromString(node.get("orderId").asText());
                 span.tag("orderId", orderId.toString());
 
-                // 재고 관리 시스템에서 재고 부족 상황을 인위적으로 시뮬레이션하기 위해 사용
+                // 6단계: 재고 확인 (시뮬레이션)
+                // 실제 시스템: SELECT * FROM inventory WHERE product_id = ? FOR UPDATE
+                // 현재: 설정된 확률로 랜덤 실패
                 boolean fail = ThreadLocalRandom.current().nextDouble() < serviceProperties.getInventory();
                 span.tag("inventoryCheck", fail ? "failed" : "success");
 

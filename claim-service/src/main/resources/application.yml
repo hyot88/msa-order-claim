@@ -1,35 +1,47 @@
+# Claim Service 설정
+# 반품/취소 요청을 처리하는 서비스 (개발 중)
+
 server:
-  port: 9004
+  port: 9004  # Claim Service 포트
 
 spring:
   application:
-    name: claim-service
+    name: claim-service  # Eureka에 등록될 서비스명
+
+  # PostgreSQL 데이터베이스 연결 설정
+  # docker-compose.yml의 postgres-claim 컨테이너를 사용
   datasource:
-    url: jdbc:postgresql://localhost:5434/claimdb
+    url: jdbc:postgresql://localhost:5434/claimdb  # 포트 5434 (claim 전용 DB)
     username: claim
     password: claim
+
+  # JPA/Hibernate 설정
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: update  # 엔티티 변경 시 스키마 자동 업데이트 (개발용)
     properties:
       hibernate:
         jdbc:
-          time_zone: UTC
-  kafka:
-    bootstrap-servers: localhost:29092
+          time_zone: UTC  # 모든 날짜/시간 데이터를 UTC로 저장
 
+  # Kafka 연결 설정
+  kafka:
+    bootstrap-servers: localhost:29092  # Kafka 브로커 주소 (호스트 접근용)
+
+# Eureka 서비스 디스커버리 설정
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://localhost:8761/eureka  # Discovery 서버 주소
 
+# 액추에이터 및 분산 추적 설정
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus  # 노출할 액추에이터 엔드포인트
   tracing:
     sampling:
-      probability: 1.0
+      probability: 1.0  # 모든 요청에 대해 추적 (개발용 100%)
     propagation:
-      type: B3,W3C
+      type: B3,W3C  # 분산 추적 헤더 형식 (Zipkin B3, W3C Trace Context)

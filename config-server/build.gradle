@@ -5,6 +5,10 @@ plugins {
 }
 
 dependencies {
+    // Spring Boot 웹 스타터 (REST API 제공용)
     implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // Spring Cloud Config Server
+    // Git 저장소에서 설정을 읽어 마이크로서비스들에게 제공하는 중앙 설정 서버
     implementation 'org.springframework.cloud:spring-cloud-config-server'
 }

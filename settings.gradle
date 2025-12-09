@@ -1,28 +1,48 @@
+// MSA 주문/클레임 시스템 Gradle 설정 파일
+// 멀티 모듈 프로젝트의 구조와 플러그인, 저장소를 정의합니다.
+
+// Gradle 플러그인 관리
+// 하위 모듈에서 플러그인 버전을 명시하지 않아도 되도록 중앙에서 버전 관리
 pluginManagement {
     repositories {
-        gradlePluginPortal()
-        mavenCentral()
+        gradlePluginPortal()  // Gradle 공식 플러그인 저장소
+        mavenCentral()        // Maven Central 저장소
     }
     plugins {
+        // Spring Boot Gradle 플러그인 버전 정의
+        // 하위 모듈에서 id 'org.springframework.boot'만 선언하면 이 버전 사용
         id 'org.springframework.boot' version '3.3.3'
+        // Spring Dependency Management 플러그인 버전 정의
         id 'io.spring.dependency-management' version '1.1.5'
     }
 }
 
+// 의존성 저장소 관리
+// 모든 하위 모듈에서 라이브러리를 다운로드할 저장소를 중앙 정의
 dependencyResolutionManagement {
     repositories {
-        mavenCentral()
+        mavenCentral()  // Spring Boot, Spring Cloud, Kafka 등 대부분의 라이브러리를 여기서 다운로드
     }
 }
 
+// 루트 프로젝트 이름
 rootProject.name = 'msa-order-claim'
 
+// 하위 모듈 선언 (각 디렉토리가 하나의 Gradle 프로젝트로 인식됨)
+
+// 공통 라이브러리 모듈 (이벤트 정의, Outbox 패턴 등)
 include 'common-lib'
-include 'discovery'
-include 'config-server'
-include 'api-gateway'
-include 'order-service'
-include 'inventory-service'
-include 'payment-service'
-include 'claim-service'
-include 'outbox-relay'
+
+// 인프라 서비스
+include 'discovery'       // Eureka 서비스 디스커버리 (8761)
+include 'config-server'   // Spring Cloud Config Server (8888)
+include 'api-gateway'     // API Gateway (8080)
+
+// 비즈니스 서비스
+include 'order-service'     // 주문 서비스 (9001)
+include 'inventory-service' // 재고 서비스 (9002)
+include 'payment-service'   // 결제 서비스 (9003)
+include 'claim-service'     // 클레임 서비스 (9004, 개발 중)
+
+// 특수 목적 서비스
+include 'outbox-relay'      // Outbox 이벤트를 Kafka로 발행하는 중계 서비스

@@ -1,12 +1,30 @@
+# Spring Cloud Config Server 설정
+# 중앙 집중식 설정 관리를 위한 서버
+
 server:
-  port: 8888
+  port: 8888  # Config Server 포트
+
 spring:
   cloud:
     config:
       server:
         git:
+          # Git 저장소에서 설정 파일을 읽어옴
           uri: https://github.com/hyot88/msa-order-claim
+
+          # 설정 파일이 위치한 디렉토리 경로
+          # 여러 경로 지정 가능: searchPaths: config-server/config,other/path
           searchPaths: config-server/config
+
+          # 기본 브랜치명
           default-label: master
 
-# http://localhost:8888/application/default
+# 설정 접근 URL 예시:
+# - http://localhost:8888/application/default
+# - http://localhost:8888/order-service/default
+# - http://localhost:8888/payment-service/default
+#
+# URL 패턴: /{application}/{profile}/{label}
+# - application: 서비스명 (spring.application.name)
+# - profile: 환경 (default, dev, prod 등)
+# - label: Git 브랜치/태그/커밋

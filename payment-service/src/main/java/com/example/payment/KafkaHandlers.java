@@ -22,26 +22,58 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * 결제 서비스 Kafka 이벤트 핸들러
+ *
+ * <h3>주요 역할:</h3>
+ * 주문 Saga의 두 번째 단계로, InventoryReserved 이벤트를 수신하여
+ * 결제 처리를 수행하고 결과를 payment.events 토픽으로 발행합니다.
+ *
+ * <h3>Saga 흐름:</h3>
+ * 1. InventoryReserved 또는 InventoryReservationFailed 이벤트 수신 (inventory.events)
+ * 2-a. 재고 예약 실패: PaymentFailed 즉시 발행 (보상 트랜잭션)
+ * 2-b. 재고 예약 성공: 결제 처리 로직 실행
+ * 3-a. 결제 성공: PaymentAuthorized 발행 → order-service가 주문 승인
+ * 3-b. 결제 실패: PaymentFailed 발행 → order-service가 주문 취소
+ *
+ * <h3>보상 트랜잭션 (Saga Compensation):</h3>
+ * 재고 예약은 성공했지만 결제가 실패하면, PaymentFailed 이벤트가 발행되어
+ * order-service가 주문을 취소하고 inventory-service에 재고 해제를 요청하게 됩니다.
+ *
+ * <h3>실패 시뮬레이션:</h3>
+ * ServiceProperties.payment 값(0.0~1.0)에 따라 확률적으로 결제 실패 시나리오를
+ * 시뮬레이션합니다. (예: 0.1 = 10% 확률로 결제 거절)
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class KafkaHandlers {
     private final KafkaTemplate<String, String> kafka;
     private final ObjectMapper om;
-    private final Tracer tracer;
-    private final Propagator propagator;
-    private final ServiceProperties serviceProperties;
+    private final Tracer tracer; // Micrometer Tracing
+    private final Propagator propagator; // 분산 추적 컨텍스트 전파
+    private final ServiceProperties serviceProperties; // 실패율 설정
 
+    /**
+     * inventory.events 토픽에서 재고 예약 결과를 수신하여 결제 처리
+     *
+     * <h3>처리 흐름:</h3>
+     * 1. 분산 추적 컨텍스트 추출 및 Span 생성
+     * 2. 재고 예약 성공/실패 판단 (reason 필드 유무로 구분)
+     * 3-a. 재고 실패: 즉시 PaymentFailed 발행 (보상 트랜잭션)
+     * 3-b. 재고 성공: 결제 처리 후 PaymentAuthorized 또는 PaymentFailed 발행
+     * 4. 분산 추적 컨텍스트를 Kafka 헤더에 주입
+     *
+     * @param rec Kafka 메시지 (key: orderId, value: InventoryReserved/Failed JSON)
+     * @throws Exception 처리 실패 시 (Kafka가 재시도)
+     */
     @KafkaListener(topics = "inventory.events", groupId = "payment")
     public void onInventoryEvents(ConsumerRecord<String, String> rec) throws Exception {
-        // 스팬 생성을 위한 변수
         io.micrometer.tracing.Span span = null;
 
         try {
-            // Kafka 헤더에서 트레이싱 컨텍스트 추출을 위한 캐리어 생성
+            // 1단계: Kafka 헤더에서 분산 추적 컨텍스트 추출
             Map<String, String> carrier = new HashMap<>();
-
-            // Kafka 헤더를 캐리어에 복사
             rec.headers().forEach(header -> {
                 String key = header.key();
                 String value = new String(header.value(), StandardCharsets.UTF_8);
@@ -49,13 +81,13 @@ public class KafkaHandlers {
                 log.debug("Header found: {}={}", key, value);
             });
 
-            // Propagator를 사용하여 부모 컨텍스트 추출
-            Propagator.Getter<Map<String, String>> getter = 
+            // 2단계: Propagator로 부모 Span 컨텍스트 복원
+            Propagator.Getter<Map<String, String>> getter =
                 (carrierMap, key) -> carrierMap.get(key);
 
             io.micrometer.tracing.Span.Builder spanBuilder = propagator.extract(carrier, getter);
 
-            // 자식 스팬 생성
+            // 3단계: 자식 Span 생성
             if (spanBuilder != null) {
                 span = spanBuilder
                         .name("payment-process-inventory-event")
@@ -64,7 +96,6 @@ public class KafkaHandlers {
                         .tag("offset", String.valueOf(rec.offset()))
                         .start();
             } else {
-                // 부모 컨텍스트가 없는 경우 새 스팬 시작
                 span = tracer.nextSpan()
                         .name("payment-process-inventory-event")
                         .tag("topic", rec.topic())
@@ -73,44 +104,45 @@ public class KafkaHandlers {
                         .start();
             }
 
-            // 현재 스팬을 활성화
+            // 4단계: Span 활성화 및 비즈니스 로직 실행
             try (io.micrometer.tracing.Tracer.SpanInScope ws = tracer.withSpan(span)) {
                 log.info("[payment] consume topic={} key={} value={}", rec.topic(), rec.key(), rec.value());
 
-                // 기존 traceId 헤더 추출 (호환성 유지)
+                // traceId 추출 (기존 방식 호환성)
                 Header h = rec.headers().lastHeader("traceId");
                 String traceId = h != null ? new String(h.value(), StandardCharsets.UTF_8) : span.context().traceId();
 
+                // 5단계: 메시지 파싱
                 JsonNode node = om.readTree(rec.value());
                 if (!node.has("orderId")) return;
 
                 UUID orderId = UUID.fromString(node.get("orderId").asText());
                 span.tag("orderId", orderId.toString());
 
-                boolean isFailure = node.has("reason"); // 간단 구분: reason 있으면 실패
+                // 6단계: 재고 예약 실패 여부 판단 (reason 필드로 구분)
+                boolean isFailure = node.has("reason");
                 span.tag("inventoryStatus", isFailure ? "failed" : "success");
 
                 if (isFailure) {
-                    // 보상 플로우: 결제 시도 안하고 실패 이벤트 전달(또는 PaymentCancelled)
+                    // 보상 트랜잭션: 재고 예약 실패 시 즉시 PaymentFailed 발행
+                    // order-service가 이 이벤트를 받아 주문을 취소합니다
                     var evt = Map.of("orderId", orderId.toString(), "failedAt", Instant.now().toString(), "reason", "INVENTORY_FAIL");
                     String payload = om.writeValueAsString(evt);
 
                     ProducerRecord<String, String> out = new ProducerRecord<>("payment.events", orderId.toString(), payload);
 
-                    // 현재 스팬의 컨텍스트를 Kafka 헤더에 주입
+                    // 분산 추적 컨텍스트 주입
                     Map<String, String> outgoingCarrier = new HashMap<>();
-                    propagator.inject(span.context(), outgoingCarrier, 
+                    propagator.inject(span.context(), outgoingCarrier,
                             (carrierMap, key, value) -> carrierMap.put(key, value));
 
-                    // 주입된 헤더를 Kafka 레코드에 추가
                     for (Map.Entry<String, String> entry : outgoingCarrier.entrySet()) {
                         out.headers().add(new RecordHeader(entry.getKey(), entry.getValue().getBytes(StandardCharsets.UTF_8)));
                     }
 
-                    // 이전 방식의 traceId 헤더도 호환성을 위해 유지
+                    // 이전 방식의 traceId 헤더도 호환성 유지
                     out.headers().add(new RecordHeader("traceId", traceId.getBytes(StandardCharsets.UTF_8)));
 
-                    // Capture span in a final variable for use in lambda
                     final io.micrometer.tracing.Span currentSpan = span;
                     kafka.send(out).whenComplete((md, ex) -> {
                         if (ex != null) {
@@ -124,7 +156,9 @@ public class KafkaHandlers {
                     return;
                 }
 
-                // 결제 관리 시스템에서 결제 실패 상황을 인위적으로 시뮬레이션하기 위해 사용
+                // 7단계: 결제 처리 (시뮬레이션)
+                // 실제 시스템: PG사 API 호출 (카드 승인, 계좌 이체 등)
+                // 현재: 설정된 확률로 랜덤 실패
                 boolean fail = ThreadLocalRandom.current().nextDouble() < serviceProperties.getPayment();
                 span.tag("paymentCheck", fail ? "failed" : "success");
 

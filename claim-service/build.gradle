@@ -1,7 +1,11 @@
 dependencies {
+    // 분산 추적 (Distributed Tracing)
+    // Micrometer Tracing + Zipkin 통합을 위한 Brave 브리지
     implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+    // Zipkin 서버로 추적 데이터를 전송하는 리포터
     implementation 'io.zipkin.reporter2:zipkin-reporter-brave'
 
+    // 테스트 프레임워크
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }

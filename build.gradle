@@ -1,53 +1,79 @@
+// MSA 주문/클레임 시스템 루트 빌드 파일
+// Gradle 멀티 모듈 프로젝트 구조를 정의하고 전체 모듈의 공통 설정을 관리합니다.
+
 plugins {
     id 'java'
+    // Spring Boot 플러그인을 루트 프로젝트에는 적용하지 않음 (apply false)
+    // 각 하위 모듈에서 필요에 따라 선택적으로 적용
     id 'org.springframework.boot' apply false
+    // Spring Dependency Management 플러그인 (BOM 관리)
     id 'io.spring.dependency-management' apply false
 }
 
+// 프로젝트 그룹 및 버전
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 
+// 전역 변수 정의 (모든 하위 모듈에서 참조 가능)
 ext {
-    set('springBootVersion', '3.3.3')
-    set('springCloudVersion', '2023.0.3')
-    set('javaVersion', 21)
+    set('springBootVersion', '3.3.3')     // Spring Boot 버전
+    set('springCloudVersion', '2023.0.3') // Spring Cloud 버전
+    set('javaVersion', 21)                // Java 언어 버전
 }
 
 allprojects {
-    // 공통 저장소는 settings의 dependencyResolutionManagement에 이미 선언
+    // 모든 프로젝트(루트 포함)에 적용되는 설정
+    // 공통 저장소는 settings.gradle의 dependencyResolutionManagement에 이미 선언되어 있음
 }
 
 subprojects {
+    // 모든 하위 모듈에 적용되는 공통 설정
+
+    // Java 플러그인 적용 (컴파일, 테스트 등)
     apply plugin: 'java'
-    // dependencyManagement DSL을 쓰려면 이 플러그인이 반드시 필요
+
+    // Spring Dependency Management 플러그인 적용
+    // dependencyManagement DSL을 사용하여 BOM(Bill of Materials)을 통한 버전 관리
     apply plugin: 'io.spring.dependency-management'
 
+    // Java Toolchain 설정
+    // 빌드 시 사용할 Java 버전 지정 (자동으로 해당 JDK를 다운로드)
     java {
         toolchain { languageVersion = JavaLanguageVersion.of(javaVersion as int) }
     }
 
+    // 컴파일 전용(compileOnly) 의존성이 annotationProcessor를 포함하도록 설정
+    // Lombok 등의 어노테이션 프로세서가 제대로 동작하게 함
     configurations {
         compileOnly { extendsFrom annotationProcessor }
     }
 
+    // 모든 테스트 태스크에 JUnit Platform 사용
     tasks.withType(Test).configureEach { useJUnitPlatform() }
 
-    // 전 모듈 공통 라이브러리(Jackson 등) 버전을 통합관리
+    // 전체 모듈 공통 의존성 버전 관리
+    // Spring Boot BOM을 import하여 Spring 관련 라이브러리의 버전을 자동으로 통합 관리
+    // 예: Jackson, Logback, Hibernate 등의 버전이 Spring Boot와 호환되는 버전으로 자동 설정
     dependencyManagement {
         imports {
             mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
         }
     }
 
-    // 부트 플러그인이 선언된 모듈에서만 Cloud BOM import + 테스트 의존 추가
+    // Spring Boot 플러그인이 적용된 모듈에서만 추가 설정 적용
+    // common-lib는 Spring Boot 플러그인이 없으므로 이 블록이 적용되지 않음
     plugins.withId('org.springframework.boot') {
         dependencyManagement {
             imports {
+                // Spring Cloud BOM import
+                // Eureka, Gateway, Config Server 등의 버전을 통합 관리
                 mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
             }
         }
 
         dependencies {
+            // Spring Boot 애플리케이션 모듈에는 테스트 스타터 자동 추가
+            // @SpringBootTest, MockMvc 등을 사용할 수 있음
             testImplementation 'org.springframework.boot:spring-boot-starter-test'
         }
     }

@@ -1,35 +1,48 @@
+# order-service 설정
+
 server:
-  port: 9001
+  port: 9001  # 서비스 포트 (API Gateway에서 라우팅)
 
 spring:
   application:
-    name: order-service
+    name: order-service  # Eureka에 등록될 서비스명
+
+  # PostgreSQL 데이터베이스 연결
+  # Docker Compose에서 실행 중인 PostgreSQL 컨테이너 사용
   datasource:
-    url: jdbc:postgresql://localhost:5433/orderdb
+    url: jdbc:postgresql://localhost:5433/orderdb  # 포트 5433 (외부 접근용)
     username: order
     password: order
+
+  # JPA/Hibernate 설정
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: update  # 개발용: 자동으로 스키마 생성/업데이트 (프로덕션에서는 validate 사용)
     properties:
       hibernate:
         jdbc:
-          time_zone: UTC
-  kafka:
-    bootstrap-servers: localhost:29092
+          time_zone: UTC  # 모든 Instant 타입을 UTC 기준으로 저장
 
+  # Kafka 연결 설정
+  kafka:
+    bootstrap-servers: localhost:29092  # Kafka 브로커 주소 (Docker Compose)
+
+# Eureka 서비스 디스커버리 설정
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://localhost:8761/eureka  # Eureka 서버 주소
 
+# Spring Actuator 및 분산 추적 설정
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus  # 노출할 엔드포인트
+
+  # 분산 추적 (Zipkin)
   tracing:
     sampling:
-      probability: 1.0  # Zipkin 확인용
+      probability: 1.0  # 모든 요청 추적 (개발용, 프로덕션에서는 0.1~0.3 권장)
     propagation:
-      type: B3,W3C
+      type: B3,W3C  # B3 (Zipkin) 및 W3C Trace Context 전파 형식 지원
